@@ -1,31 +1,23 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useStore } from '@tanstack/react-store'
 import { projectActions, projectStore } from '@/store/project-store'
-import { renderNow } from '@/store/render-controller'
 import { fetchScad } from '@/server/fetch-scad'
+import {
+  downloadStateFile,
+  parseState,
+  serializeState,
+} from '@/scad/state-io'
 
 const SAMPLE_URL = '/samples/rounded-channel.scad'
 const SAMPLE_NAME = 'rounded-channel.scad'
 const SAMPLE_ORIGIN = 'sample:/samples/rounded-channel.scad'
 
-function downloadStl(stl: Uint8Array, fileName: string) {
-  const blob = new Blob([stl as BlobPart], { type: 'model/stl' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = fileName
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
-}
-
-export function Toolbar() {
-  const renderState = useStore(projectStore, (s) => s.render)
+export function UrlControls() {
   const sourceState = useStore(projectStore, (s) => s.source)
   const [url, setUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const handleLoad = async () => {
     setError(null)
@@ -67,21 +59,54 @@ export function Toolbar() {
     }
   }
 
-  const handleRender = () => {
-    void renderNow()
-  }
-
-  const handleExport = () => {
-    if (!renderState.stl) return
-    const baseName = sourceState?.name?.replace(/\.scad$/i, '') ?? 'output'
-    downloadStl(renderState.stl, `${baseName}.stl`)
+  const handleSaveState = () => {
+    setError(null)
+    const state = projectStore.state
+    if (!state.source) {
+      setError('Nothing to save — load a model first.')
+      return
+    }
+    const baseName = state.source.name.replace(/\.scad$/i, '') || 'state'
+    const payload = serializeState({
+      name: state.source.name,
+      origin: state.source.origin,
+      source: state.source.text,
+      overrides: state.overrides,
+    })
+    downloadStateFile(payload, `${baseName}.scad-state.json`)
     projectActions.pushHistory({
       kind: 'export',
-      summary: `exported ${baseName}.stl (${renderState.stl.byteLength} bytes)`,
+      summary: `saved state ${baseName}.scad-state.json`,
     })
   }
 
-  const canExport = renderState.status === 'success' && renderState.stl !== null
+  const handlePickFile = () => {
+    setError(null)
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setError(null)
+    try {
+      const text = await file.text()
+      const result = parseState(text)
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      projectActions.loadSource({
+        name: result.data.name,
+        origin: result.data.origin,
+        source: result.data.source,
+      })
+      projectActions.setOverrides(result.data.overrides)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -112,22 +137,31 @@ export function Toolbar() {
         >
           Load sample
         </button>
+        <span className="mx-1 hidden h-5 w-px bg-[var(--line)] sm:inline-block" />
         <button
           type="button"
-          onClick={handleRender}
-          disabled={!sourceState || renderState.status === 'pending'}
+          onClick={handleSaveState}
+          disabled={!sourceState}
+          title="Save the current source + parameter overrides to a JSON file"
           className="rounded-full border border-[var(--line)] bg-[var(--chip-bg)] px-4 py-2 text-sm font-semibold text-[var(--sea-ink)] transition disabled:opacity-50"
         >
-          Render
+          Save state
         </button>
         <button
           type="button"
-          onClick={handleExport}
-          disabled={!canExport}
-          className="rounded-full border border-[var(--line)] bg-[var(--chip-bg)] px-4 py-2 text-sm font-semibold text-[var(--sea-ink)] transition disabled:opacity-50"
+          onClick={handlePickFile}
+          title="Load a previously saved scad-webmcp state JSON file"
+          className="rounded-full border border-[var(--line)] bg-[var(--chip-bg)] px-4 py-2 text-sm font-semibold text-[var(--sea-ink)] transition"
         >
-          Export STL
+          Load state
         </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={(e) => void handleFileChosen(e)}
+        />
       </div>
       {error ? (
         <p className="m-0 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-900">

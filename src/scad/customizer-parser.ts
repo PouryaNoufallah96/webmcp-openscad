@@ -9,6 +9,18 @@ const ASSIGNMENT_RE =
 
 const STRING_LITERAL_RE = /^"((?:\\.|[^"\\])*)"$/
 const NUMBER_LITERAL_RE = /^-?\d+(?:\.\d+)?$/
+const GROUP_MARKER_RE = /^\/\*\s*\[(.+?)\]\s*\*\/$/
+
+function extractGroupMarkers(source: string): Map<number, string> {
+  const markers = new Map<number, string>()
+  const lines = source.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
+    const m = GROUP_MARKER_RE.exec(trimmed)
+    if (m) markers.set(i, m[1].trim())
+  }
+  return markers
+}
 
 function stripBlockComments(source: string): string {
   let result = ''
@@ -201,13 +213,20 @@ function flushDescription(buffer: string[]): string | undefined {
 }
 
 export function parseCustomizer(source: string): Parameter[] {
+  const groupMarkers = extractGroupMarkers(source)
   const cleaned = stripBlockComments(source)
   const lines = cleaned.split('\n')
   const params: Parameter[] = []
   const descBuffer: string[] = []
+  let currentGroup: string | undefined
 
-  for (let rawLine of lines) {
-    const line = rawLine
+  for (let i = 0; i < lines.length; i++) {
+    if (groupMarkers.has(i)) {
+      currentGroup = groupMarkers.get(i)
+      descBuffer.length = 0
+      continue
+    }
+    const line = lines[i]
 
     if (line.trim() === '') {
       descBuffer.length = 0
@@ -243,12 +262,14 @@ export function parseCustomizer(source: string): Parameter[] {
     if (!literal) continue
 
     const magic = parseMagicComment(trailingComment)
+    const group = currentGroup
 
     if (literal.kind === 'boolean') {
       params.push({
         kind: 'boolean',
         name,
         description,
+        group,
         value: literal.value,
       })
       continue
@@ -259,6 +280,7 @@ export function parseCustomizer(source: string): Parameter[] {
         kind: 'enum',
         name,
         description,
+        group,
         value: literal.value,
         options: magic.meta.options,
       })
@@ -270,6 +292,7 @@ export function parseCustomizer(source: string): Parameter[] {
         kind: 'number' as const,
         name,
         description,
+        group,
         value: literal.value,
       }
       if (magic.meta?.kind === 'range') {
@@ -290,6 +313,7 @@ export function parseCustomizer(source: string): Parameter[] {
         kind: 'string',
         name,
         description,
+        group,
         value: literal.value,
       })
       continue

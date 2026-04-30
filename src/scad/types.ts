@@ -2,6 +2,7 @@ export type ParameterNumber = {
   kind: 'number'
   name: string
   description?: string
+  group?: string
   value: number
   min?: number
   max?: number
@@ -17,6 +18,7 @@ export type ParameterEnum = {
   kind: 'enum'
   name: string
   description?: string
+  group?: string
   value: string | number
   options: Array<ParameterEnumOption>
 }
@@ -25,6 +27,7 @@ export type ParameterBoolean = {
   kind: 'boolean'
   name: string
   description?: string
+  group?: string
   value: boolean
 }
 
@@ -32,6 +35,7 @@ export type ParameterString = {
   kind: 'string'
   name: string
   description?: string
+  group?: string
   value: string
 }
 

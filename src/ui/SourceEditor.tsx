@@ -84,9 +84,9 @@ export function SourceEditor({ className }: { className?: string }) {
           {draft.length.toLocaleString()} chars · auto-commits 400ms after typing
         </p>
       </div>
-      <div className="overflow-hidden rounded-xl border border-[var(--line)]">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--line)]">
         <Editor
-          height="320px"
+          height="100%"
           defaultLanguage="scad"
           value={draft}
           onChange={onChange}

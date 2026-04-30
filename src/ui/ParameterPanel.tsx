@@ -185,12 +185,40 @@ function ParameterRow({ param }: { param: Parameter }) {
   )
 }
 
+const UNGROUPED_KEY = '__ungrouped__'
+
+function groupParameters(parameters: Parameter[]): Array<{
+  key: string
+  label: string | null
+  items: Parameter[]
+}> {
+  const order: string[] = []
+  const buckets = new Map<string, Parameter[]>()
+  for (const p of parameters) {
+    if (p.group === 'Hidden') continue
+    const key = p.group ?? UNGROUPED_KEY
+    if (!buckets.has(key)) {
+      buckets.set(key, [])
+      order.push(key)
+    }
+    buckets.get(key)!.push(p)
+  }
+  return order.map((key) => ({
+    key,
+    label: key === UNGROUPED_KEY ? null : key,
+    items: buckets.get(key)!,
+  }))
+}
+
 export function ParameterPanel({ className }: { className?: string }) {
   const parameters = useStore(projectStore, (s) => s.parameters)
   const overrides = useStore(projectStore, (s) => s.overrides)
   const overrideCount = Object.keys(overrides).length
 
-  if (parameters.length === 0) {
+  const groups = groupParameters(parameters)
+  const visibleCount = groups.reduce((n, g) => n + g.items.length, 0)
+
+  if (visibleCount === 0) {
     return (
       <div className={className}>
         <p className="text-xs text-[var(--sea-ink-soft)]">
@@ -202,9 +230,9 @@ export function ParameterPanel({ className }: { className?: string }) {
 
   return (
     <div className={className}>
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between">
         <p className="island-kicker">
-          Parameters ({parameters.length})
+          Parameters ({visibleCount})
         </p>
         {overrideCount > 0 ? (
           <button
@@ -216,9 +244,20 @@ export function ParameterPanel({ className }: { className?: string }) {
           </button>
         ) : null}
       </div>
-      <div className="flex flex-col gap-2">
-        {parameters.map((param) => (
-          <ParameterRow key={param.name} param={param} />
+      <div className="flex flex-col gap-5">
+        {groups.map((group) => (
+          <section key={group.key} className="flex flex-col gap-2">
+            {group.label ? (
+              <h3 className="m-0 border-b border-[var(--line)] pb-1 text-sm font-bold tracking-tight text-[var(--sea-ink)]">
+                {group.label}
+              </h3>
+            ) : null}
+            <div className="flex flex-col gap-2">
+              {group.items.map((param) => (
+                <ParameterRow key={param.name} param={param} />
+              ))}
+            </div>
+          </section>
         ))}
       </div>
     </div>
