@@ -8,9 +8,9 @@ import {
   serializeState,
 } from '@/scad/state-io'
 
-const SAMPLE_URL = '/samples/rounded-channel.scad'
-const SAMPLE_NAME = 'rounded-channel.scad'
-const SAMPLE_ORIGIN = 'sample:/samples/rounded-channel.scad'
+const SAMPLE_URL = '/samples/multiboard-box.scad'
+const SAMPLE_NAME = 'multiboard-box.scad'
+const SAMPLE_ORIGIN = 'sample:/samples/multiboard-box.scad'
 
 export function UrlControls() {
   const sourceState = useStore(projectStore, (s) => s.source)

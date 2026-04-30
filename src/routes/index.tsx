@@ -11,9 +11,9 @@ import { registerWebMcpTools } from '@/mcp/register'
 
 export const Route = createFileRoute('/')({ component: App })
 
-const SAMPLE_NAME = 'rounded-channel.scad'
-const SAMPLE_ORIGIN = 'sample:/samples/rounded-channel.scad'
-const SAMPLE_URL = '/samples/rounded-channel.scad'
+const SAMPLE_NAME = 'multiboard-box.scad'
+const SAMPLE_ORIGIN = 'sample:/samples/multiboard-box.scad'
+const SAMPLE_URL = '/samples/multiboard-box.scad'
 
 type Mode = 'customize' | 'code'
 

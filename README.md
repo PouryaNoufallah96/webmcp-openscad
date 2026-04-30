@@ -66,12 +66,12 @@ pnpm dev
 ```
 
 The page boots with a real Multiboard/Underware MakerWorld customizer SCAD at
-`public/samples/rounded-channel.scad`. The first render takes a few seconds
+`public/samples/multiboard-box.scad`. The first render takes a few seconds
 because of the BOSL2 mount + the model's complexity; subsequent edits are
 fast.
 
 To swap the default model, drop a different file into
-`public/samples/rounded-channel.scad` and click **Load sample** in the
+`public/samples/multiboard-box.scad` and click **Load sample** in the
 toolbar (the page only fetches the sample once on boot — the button forces a
 re-fetch). Or paste any URL — a MakerWorld customizer URL with `?scadUrl=...`
 or a direct `.scad` URL — and click **Load URL**.
@@ -218,7 +218,7 @@ public/
   dropping `.scad` files (and an `index.json` listing) under
   `public/libraries/<name>/` and pointing the worker at it.
 - **Sample file is fetched once on boot.** Editing
-  `public/samples/rounded-channel.scad` while the page is open won't
+  `public/samples/multiboard-box.scad` while the page is open won't
   hot-replace the loaded source — click **Load sample** in the toolbar (or
   hard-reload) to pick up the new file.
 - **Relay is one process.** A single `webmcp-local-relay` instance can serve
