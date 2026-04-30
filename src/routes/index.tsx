@@ -59,8 +59,8 @@ function App() {
 
       <main className="flex min-h-0 flex-1">
         {mode === 'customize' ? (
-          <div className="grid min-h-0 w-full flex-1 grid-cols-[320px_1fr]">
-            <ParameterPanel className="h-full overflow-y-auto border-r border-[var(--line)] p-3" />
+          <div className="grid min-h-0 w-full flex-1 grid-cols-[640px_1fr]">
+            <ParameterPanel className="h-full overflow-y-auto border-r border-[var(--line)] p-4" />
             <PreviewPane />
           </div>
         ) : (
