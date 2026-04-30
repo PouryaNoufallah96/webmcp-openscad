@@ -9,6 +9,34 @@ The point isn't to clone MakerWorld. The point is a demo of agent-authored CAD
 where the agent can mutate the SCAD itself, not just the parameters the model
 author happened to expose.
 
+## Status
+
+End-to-end working at `http://localhost:3000`:
+
+- Boots with a real-world MakerWorld-style SCAD (Andy Levesque's Underware /
+  Multiboard I-Channel) — 53 customizer parameters, full BOSL2 dependency,
+  renders cleanly out of the box. Proves the worker, the BOSL2 mount, the
+  parameter parser, and the URL adapter all hold up against a non-trivial
+  model.
+- Worker round-trip: ~1s on cold start (WASM init + BOSL2 mount), ~3-4s for
+  the full Underware model, ~400-800ms for simple shapes after the worker
+  respawn between renders.
+- Auto-render fires 300ms after any parameter or source change. Render
+  status, byteLength, request id, and stderr all live in the store and show
+  up in the UI's render-details strip.
+- Activity panel shows a live, kind-tagged log of every action (`load`,
+  `param`, `source`, `render`, `export`).
+- 14 WebMCP tools are registered on `navigator.modelContext` via
+  `@mcp-b/global` and verified flowing through to the MCP-B browser
+  extension's proxy (`[MCP Proxy] Sending 14 tools with type: tools-updated`).
+- Monaco source editor with custom SCAD syntax highlighting, two-way bound
+  to the store with a 400ms debounced commit + reparse.
+- Server-fn CORS proxy verified by loading `openscad/examples/Basics/CSG.scad`
+  straight from raw.githubusercontent.com.
+- Dark-mode polish: every input / select / pill button uses the theme-aware
+  `--chip-bg` / `--surface` / `--sea-ink` tokens so values are legible in
+  both schemes.
+
 ## Stack
 
 - **TanStack Start** (Vite + Nitro) — app shell, server functions, SSR
@@ -37,19 +65,33 @@ pnpm dev
 # then open http://localhost:3000
 ```
 
-The page boots with a self-contained sample (`public/samples/rounded-channel.scad`)
-that uses BOSL2 — confirming the worker, the library mount, and the parameter
-parser. Paste any SCAD URL or a MakerWorld customizer URL into the toolbar to
-load that instead.
+The page boots with a real Multiboard/Underware MakerWorld customizer SCAD at
+`public/samples/rounded-channel.scad`. The first render takes a few seconds
+because of the BOSL2 mount + the model's complexity; subsequent edits are
+fast.
+
+To swap the default model, drop a different file into
+`public/samples/rounded-channel.scad` and click **Load sample** in the
+toolbar (the page only fetches the sample once on boot — the button forces a
+re-fetch). Or paste any URL — a MakerWorld customizer URL with `?scadUrl=...`
+or a direct `.scad` URL — and click **Load URL**.
 
 ## Connect Claude (or another MCP client)
 
-The browser registers tools on `navigator.modelContext`. To get them in front of
-an MCP client, run the local relay and add it to your client config.
+The browser registers tools on `navigator.modelContext`. Two paths to surface
+them in an MCP client:
 
-### Claude Desktop / Cursor / Windsurf
+### Path A: MCP-B browser extension (Chrome)
 
-Add to your MCP config:
+Install the MCP-B browser extension (Chrome Web Store). Open
+`http://localhost:3000`. The extension's content script picks up
+`navigator.modelContext` directly — no relay process required. You'll see
+`[MCP Proxy] Sending 14 tools with type: tools-updated` in the page console.
+
+### Path B: Local stdio relay (any MCP client)
+
+Add to your client's MCP config (Claude Desktop, Cursor, Windsurf, Claude
+Code, anything that speaks MCP):
 
 ```json
 {
@@ -62,10 +104,10 @@ Add to your MCP config:
 }
 ```
 
-Restart the client. Open `http://localhost:3000`. The relay's embed script
-(loaded automatically by this app) opens a WebSocket back to the relay; the
-relay then surfaces every tool registered on `navigator.modelContext` over
-stdio MCP.
+Restart the client, open `http://localhost:3000`. The relay's embed script
+(loaded automatically by `__root.tsx`) opens a WebSocket back to the relay;
+the relay then surfaces every tool registered on `navigator.modelContext`
+over stdio MCP.
 
 You should now see tools in your client:
 
@@ -84,20 +126,28 @@ that ships native WebMCP (Canary 147+):
 1. Visit `chrome://flags/#enable-webmcp-testing`
 2. Enable **WebMCP for testing**, restart the browser
 
-The polyfill no-ops when a native runtime is present.
+`@mcp-b/global` no-ops core install when a native runtime is present and
+just wraps it with the bridge extensions.
 
 ## Demo script
 
-1. Open `http://localhost:3000`. The rounded-channel sample renders by default.
-2. Scrub a parameter (e.g. `length`). The viewer regenerates within ~300ms.
-3. In Claude, call `list_parameters` to see what's exposed.
-4. "Make this channel 250mm long with 6 mounting holes." Agent calls
-   `set_parameters({ values: { length: 250, hole_count: 6 } })` then `render`.
-5. **The pivot:** "Add a chamfer to the top edges of the channel." There's no
-   exposed parameter for this. Agent calls `get_source`, then `edit_source`
-   with a search/replace patch, then `render`. The model now has chamfered
-   edges that no parameter would have given you.
+1. Open `http://localhost:3000`. The Underware/Multiboard SCAD renders by
+   default — 53 parameters parsed, model in the viewer.
+2. Scrub a parameter (e.g. `Internal_Width`). The viewer regenerates within
+   ~300ms of the slider settling.
+3. In Claude (with the extension or relay connected), call `list_parameters`
+   to see what's exposed.
+4. "Set the internal width to 100mm and the internal height to 25mm, then
+   render." Agent calls
+   `set_parameters({ values: { Internal_Width: 100, Internal_Height: 25 } })`
+   then `render`.
+5. **The pivot:** "Add a 1mm chamfer to the top edges." There's no exposed
+   parameter for this. Agent calls `get_source`, then `edit_source` with a
+   search/replace patch that swaps `cuboid([..])` for `cuboid([..], chamfer=1)`,
+   then `render`. The model now has chamfered edges that no parameter would
+   have given you.
 6. "Export the STL." Agent calls `export_stl`; the bytes come back as base64.
+   Or a human can hit the **Export STL** button to download.
 
 If the agent breaks the source with a bad edit, `revert_source` rolls back to
 the last successfully-rendered text.
@@ -145,12 +195,13 @@ src/
     Toolbar.tsx           URL load, render, export, sample
     ParameterPanel.tsx    type-specific controls bound to store
     SourceEditor.tsx      Monaco with custom SCAD tokenizer
+    HistoryPanel.tsx      kind-tagged action log surfaced in the UI
   mcp/
-    tools.ts              all tool definitions (read + write)
-    register.ts           initializeWebMCPPolyfill + registerTool loop
+    tools.ts              all 14 tool definitions (read + write)
+    register.ts           initializeWebModelContext + registerTool loop
 public/
-  libraries/BOSL2/        vendored .scad files + index.json
-  samples/                self-contained demos
+  libraries/BOSL2/        56 vendored .scad files + index.json
+  samples/                default SCAD that loads on boot
 ```
 
 ## Caveats / open items
@@ -166,6 +217,39 @@ public/
 - **Library mounts.** Only BOSL2 is bundled. Adding more is a matter of
   dropping `.scad` files (and an `index.json` listing) under
   `public/libraries/<name>/` and pointing the worker at it.
+- **Sample file is fetched once on boot.** Editing
+  `public/samples/rounded-channel.scad` while the page is open won't
+  hot-replace the loaded source — click **Load sample** in the toolbar (or
+  hard-reload) to pick up the new file.
 - **Relay is one process.** A single `webmcp-local-relay` instance can serve
   multiple browser tabs, but if you start a second relay it falls back to
   client mode and proxies through the first. See the relay README for details.
+- **Embed.js feature warnings.** The relay's embed script asks for
+  `loopback-network` / `local-network` iframe permissions that newer Chrome
+  builds report as unrecognized. Harmless; the connection still works.
+
+## Build steps that landed (chronologically)
+
+1. COOP/COEP wired (later removed — single-file WASM doesn't need them, and
+   leaving them on blocks the relay's CDN-served embed).
+2. OpenSCAD-WASM worker stood up; BOSL2 vendored under
+   `public/libraries/BOSL2/` and mounted to both `/libraries/BOSL2/` and
+   `/BOSL2/` in the WASM FS.
+3. Discovered `callMain` is single-shot in this WASM build → moved to
+   terminate-and-respawn the worker after each render.
+4. TanStack Store + R3F viewer wired; cube STL renders end-to-end.
+5. Customizer parser handles `// [min:max:step]` ranges, enums (with
+   `value:Label` form), booleans, strings, plus `/* [Tab] */` headers.
+6. Server function `fetchScad` with MakerWorld + raw-URL adapters, verified
+   live by loading `openscad/examples/Basics/CSG.scad` from
+   raw.githubusercontent.com.
+7. WebMCP tools wired. Started with `@mcp-b/webmcp-polyfill` (strict W3C),
+   swapped to `@mcp-b/global` once the MCP-B browser extension was tested —
+   the extension expects `listTools`/`callTool` directly on
+   `navigator.modelContext`, which only the full runtime provides. Added
+   `zod-to-json-schema` peer dep that `@mcp-b/webmcp-ts-sdk` needs but
+   doesn't pull in itself.
+8. Monaco source editor with custom SCAD tokenizer, debounced two-way bind
+   to the store + reparse on commit.
+9. Polish: header / footer rebrand, MCP tool-count badge, activity panel,
+   theme-aware input colors for dark-mode legibility.
