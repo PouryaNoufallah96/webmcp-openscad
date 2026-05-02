@@ -11,6 +11,12 @@ export type RenderError = {
   ok: false
   message: string
   stderr: string
+  /**
+   * True when the render was preempted by a newer one (cancel from inside
+   * `render()`) rather than a real OpenSCAD failure. Callers should treat
+   * this as "superseded", not as an error to surface to the user/agent.
+   */
+  aborted?: boolean
 }
 
 export type RenderOutcome = RenderResult | RenderError
@@ -128,7 +134,12 @@ export class OpenScadClient {
   cancel(): void {
     if (!this.worker) return
     for (const pending of this.pending.values()) {
-      pending.resolve({ ok: false, message: 'Render cancelled', stderr: '' })
+      pending.resolve({
+        ok: false,
+        message: 'superseded',
+        stderr: '',
+        aborted: true,
+      })
     }
     this.pending.clear()
     this.currentRenderId = null

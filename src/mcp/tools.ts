@@ -513,14 +513,14 @@ const getRenderStatus: ToolDefinition = {
 const exportStl: ToolDefinition = {
   name: 'export_stl',
   description:
-    'Return the most recently rendered STL bytes as base64 (alongside byteLength). Always renders first if the source has changed since the last successful render.',
+    'Return the most recently rendered STL bytes as base64 (alongside byteLength). Re-renders first if the current source differs from the last successful render, or if `forceRender` is true.',
   inputSchema: {
     type: 'object',
     properties: {
       forceRender: {
         type: 'boolean',
         description:
-          'If true, always trigger a fresh render before returning bytes. Default true.',
+          'If true, always trigger a fresh render before returning bytes (even if the source is unchanged). Default false — re-renders only when the source has drifted from the last successful render.',
       },
       truncateBase64: {
         type: 'integer',
@@ -533,8 +533,13 @@ const exportStl: ToolDefinition = {
   },
   async execute(args) {
     const a = (args as { forceRender?: unknown; truncateBase64?: unknown }) ?? {}
-    const force = a.forceRender !== false
-    if (force) {
+    const force = a.forceRender === true
+    const state = projectStore.state
+    const sourceText = state.source?.text ?? null
+    const sourceDrifted =
+      sourceText !== null && sourceText !== state.lastGoodSource
+    const noStl = state.render.stl === null
+    if (force || sourceDrifted || noStl) {
       const outcome = await renderNow()
       if (!outcome.ok) {
         return err(`render failed: ${outcome.message}`)

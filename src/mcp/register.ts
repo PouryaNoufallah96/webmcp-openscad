@@ -31,12 +31,16 @@ declare global {
 export function registerWebMcpTools(): void {
   if (typeof window === 'undefined') return
   if (registered) return
-  registered = true
 
   // Full @mcp-b/global runtime: sets up the tab-server transport that the
   // MCP-B browser extension's content script talks to (listTools / callTool),
   // plus the iframe-child transport used by the local relay's embed widget.
-  initializeWebModelContext({ installTestingShim: 'if-missing' })
+  try {
+    initializeWebModelContext({ installTestingShim: 'if-missing' })
+  } catch (e) {
+    console.warn('[mcp] initializeWebModelContext failed', e)
+    return
+  }
 
   const ctx = navigator.modelContext
   if (!ctx) {
@@ -57,6 +61,10 @@ export function registerWebMcpTools(): void {
       console.warn(`[mcp] failed to register tool "${tool.name}"`, e)
     }
   }
+
+  // Only mark as registered once we got far enough to install tools, so a
+  // failed init can be retried by the next `useEffect` mount.
+  registered = true
 
   console.log(
     `[mcp] registered ${registeredCount} tools on navigator.modelContext`,

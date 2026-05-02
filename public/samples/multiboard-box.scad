@@ -236,23 +236,22 @@ translate(v = [-Internal_Width/2,0,0])
 if(ClamShell_Mode)
 up(total_item_width+item_slop*2) zflip() //rot([0,180,0])
 union(){
-translate(v = [-Internal_Width/2,0,0]) 
+translate(v = [-Internal_Width/2,0,0])
     if(!Backer_Only_Mode)
         basket();
     //slotted back
     if(Mounting_Style == "Multiconnect")
-        translate([0,0.02,totalDepth/2-baseThickness]) 
+        translate([0,0.02,totalDepth/2-baseThickness])
             rotate([0,Slot_From_Top ? 180 : 0,0])
                 translate([-totalWidth/2,0,-totalDepth/2])//center
                     multiconnectBack(
-                        backWidth = totalWidth, 
-                        backHeight = totalDepth, 
-                        distanceBetweenSlots = distanceBetweenSlots, 
+                        backWidth = totalWidth,
+                        backHeight = totalDepth,
+                        distanceBetweenSlots = distanceBetweenSlots,
                         slotStopFromBack = ClamShell_Mode ? new_mount_point_inward_adjustement : Multiconnect_Stop_Distance_From_Back,
                     );
     else
-        translate([0,0.02,-baseThickness])
-            threadedSnapBack(backWidth = totalWidth, backHeight= totalDepth, distanceBetweenSlots = distanceBetweenSlots, anchor=BOT+BACK);
+        echo("WARNING: ClamShell_Mode is only supported with Mounting_Style=\"Multiconnect\"; skipping threaded snap back on clamshell half.");
 }
 
 //Create Basket

@@ -51,7 +51,11 @@ async function performRender(): Promise<RenderOutcomeSummary> {
     params: buildOverrideArgs(state.parameters, state.overrides),
   })
 
-  if (projectStore.state.render.requestId !== requestId) {
+  // If the worker client cancelled us in favor of a newer render, the
+  // outcome carries `aborted: true`. Either way (aborted or stale requestId)
+  // we must not write our result into the store.
+  const stale = projectStore.state.render.requestId !== requestId
+  if (stale || (!outcome.ok && outcome.aborted)) {
     return { ok: false, requestId, message: 'superseded', stderr: '' }
   }
 
@@ -88,7 +92,9 @@ function scheduleRender(): void {
   if (debounceHandle !== null) clearTimeout(debounceHandle)
   debounceHandle = setTimeout(() => {
     debounceHandle = null
-    void performRender()
+    performRender().catch((e) => {
+      console.error('[render-controller] unexpected render failure', e)
+    })
   }, DEBOUNCE_MS)
 }
 
@@ -121,7 +127,7 @@ export function startRenderController(): () => void {
   return stopFn
 }
 
-export async function renderNow(): Promise<RenderOutcomeSummary> {
+export function renderNow(): Promise<RenderOutcomeSummary> {
   if (debounceHandle !== null) {
     clearTimeout(debounceHandle)
     debounceHandle = null

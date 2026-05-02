@@ -79,7 +79,9 @@ export const projectActions = {
         },
         parameters,
         overrides: {},
-        lastGoodSource: input.source,
+        // lastGoodSource is populated only after a successful render
+        // (see setRenderResult). On load we have no proof the source renders.
+        lastGoodSource: null,
         render: {
           status: 'idle',
           requestId: null,
@@ -202,13 +204,14 @@ export const projectActions = {
   },
 
   revertSource(): boolean {
-    let didRevert = false
+    const s = projectStore.state
+    if (!s.source || s.lastGoodSource === null) return false
+    if (s.source.text === s.lastGoodSource) return false
+    const target = s.lastGoodSource
     projectStore.setState((state) => {
-      if (!state.source || state.lastGoodSource === null) return state
-      if (state.source.text === state.lastGoodSource) return state
-      didRevert = true
+      if (!state.source) return state
       return pushHistory(
-        { ...state, source: { ...state.source, text: state.lastGoodSource } },
+        { ...state, source: { ...state.source, text: target } },
         {
           ts: Date.now(),
           kind: 'source',
@@ -216,7 +219,7 @@ export const projectActions = {
         },
       )
     })
-    return didRevert
+    return true
   },
 
   setRenderStatus(status: RenderStatus, requestId: string | null) {

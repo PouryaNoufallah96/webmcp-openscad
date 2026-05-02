@@ -19,7 +19,7 @@ function post(msg: WorkerResponse, transfer: Transferable[] = []) {
 
 async function getOpenSCAD(): Promise<OpenSCADInstance> {
   if (!openscadPromise) {
-    openscadPromise = createOpenSCAD({
+    const p = createOpenSCAD({
       print: (text) => {
         stderrBuffer.push(text)
       },
@@ -35,13 +35,18 @@ async function getOpenSCAD(): Promise<OpenSCADInstance> {
       }
       return openscad
     })
+    // Don't cache a permanently-rejected promise — let the next caller retry.
+    p.catch(() => {
+      if (openscadPromise === p) openscadPromise = null
+    })
+    openscadPromise = p
   }
   return openscadPromise
 }
 
 async function ensureBosl2Mounted(openscad: OpenSCADInstance): Promise<void> {
   if (bosl2MountedPromise) return bosl2MountedPromise
-  bosl2MountedPromise = (async () => {
+  const p = (async () => {
     const fs = openscad.getInstance().FS
     try {
       fs.mkdir('/libraries')
@@ -80,6 +85,11 @@ async function ensureBosl2Mounted(openscad: OpenSCADInstance): Promise<void> {
     )
     console.log(`[openscad-worker] mounted ${files.length} BOSL2 files`)
   })()
+  // Don't cache a permanently-rejected promise — let the next caller retry.
+  p.catch(() => {
+    if (bosl2MountedPromise === p) bosl2MountedPromise = null
+  })
+  bosl2MountedPromise = p
   return bosl2MountedPromise
 }
 

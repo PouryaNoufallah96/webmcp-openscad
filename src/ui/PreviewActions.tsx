@@ -11,7 +11,7 @@ function downloadStl(stl: Uint8Array, fileName: string) {
   document.body.appendChild(a)
   a.click()
   a.remove()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), 100)
 }
 
 function Spinner() {

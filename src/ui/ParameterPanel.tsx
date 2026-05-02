@@ -81,7 +81,7 @@ function NumberControl({
           max={param.max}
           step={step}
           value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => onChange(clamp(Number(e.target.value)))}
         />
         <input
           type="number"
@@ -92,7 +92,7 @@ function NumberControl({
           value={value}
           onChange={(e) => {
             const next = Number(e.target.value)
-            if (Number.isFinite(next)) onChange(next)
+            if (Number.isFinite(next)) onChange(clamp(next))
           }}
         />
       </div>
@@ -110,7 +110,7 @@ function NumberControl({
         value={value}
         onChange={(e) => {
           const next = Number(e.target.value)
-          if (Number.isFinite(next)) onChange(next)
+          if (Number.isFinite(next)) onChange(clamp(next))
         }}
       />
       <button

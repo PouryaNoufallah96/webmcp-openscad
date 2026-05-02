@@ -8,7 +8,7 @@ const ASSIGNMENT_RE =
   /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;\s*(?:\/\/\s*(.*))?$/
 
 const STRING_LITERAL_RE = /^"((?:\\.|[^"\\])*)"$/
-const NUMBER_LITERAL_RE = /^-?\d+(?:\.\d+)?$/
+const NUMBER_LITERAL_RE = /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/
 const GROUP_MARKER_RE = /^\/\*\s*\[(.+?)\]\s*\*\/$/
 
 function extractGroupMarkers(source: string): Map<number, string> {

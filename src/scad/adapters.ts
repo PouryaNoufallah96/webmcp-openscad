@@ -15,9 +15,6 @@ async function fetchText(url: string, originLabel: string): Promise<ScadSource> 
     )
   }
   const source = await resp.text()
-  if (!/^[\s]*[\w/(]/.test(source)) {
-    // Looks empty; that's fine — it's still SCAD.
-  }
   const name = guessName(url)
   return { name, source, origin: originLabel }
 }
@@ -45,6 +42,7 @@ export const makerWorldAdapter: Adapter = {
   },
   fetch: async (url) => {
     const u = new URL(url)
+    // URLSearchParams.get() already percent-decodes; do not decode again.
     const scadUrl =
       u.searchParams.get('scadUrl') ?? u.searchParams.get('scad_url')
     if (!scadUrl) {
@@ -52,8 +50,7 @@ export const makerWorldAdapter: Adapter = {
         'MakerWorld URL is missing a `scadUrl` query parameter. Open the customizer page and copy the URL from the address bar.',
       )
     }
-    const decoded = decodeURIComponent(scadUrl)
-    const source = await fetchText(decoded, `makerworld:${u.toString()}`)
+    const source = await fetchText(scadUrl, `makerworld:${u.toString()}`)
     return { ...source, name: source.name || 'makerworld.scad' }
   },
 }
@@ -72,7 +69,7 @@ export const rawScadAdapter: Adapter = {
       return false
     }
   },
-  fetch: async (url) => fetchText(url, `raw:${url}`),
+  fetch: (url) => fetchText(url, `raw:${url}`),
 }
 
 export const adapters: Adapter[] = [makerWorldAdapter, rawScadAdapter]
@@ -84,10 +81,10 @@ export function findAdapter(url: string): Adapter | null {
   return null
 }
 
-export async function fetchScadFromUrl(url: string): Promise<ScadSource> {
+export function fetchScadFromUrl(url: string): Promise<ScadSource> {
   const adapter = findAdapter(url)
   if (!adapter) {
-    throw new Error(`No adapter matched URL: ${url}`)
+    return Promise.reject(new Error(`No adapter matched URL: ${url}`))
   }
   return adapter.fetch(url)
 }
