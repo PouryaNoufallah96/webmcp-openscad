@@ -1,3 +1,17 @@
+/**
+ * Main-thread client for the OpenSCAD WASM worker.
+ *
+ * Why a class with a singleton: rendering needs strict serial semantics
+ * (the WASM `callMain` is single-shot), and we want one place that owns
+ * the worker lifecycle so cancellation, error handling, and respawn live
+ * together. Public callers only see `render()` / `cancel()` / `ready()`.
+ *
+ * The terminate-and-respawn pattern below is the unfortunate price of
+ * `openscad-wasm-prebuilt`: its Emscripten `callMain` corrupts the
+ * instance after one invocation, so every render gets a freshly spawned
+ * worker. The good news is that the WASM JS shim is cached by the
+ * browser, so respawn is fast (a few hundred ms incl. BOSL2 remount).
+ */
 import type { RenderFormat, WorkerRequest, WorkerResponse } from './protocol'
 
 export type RenderResult = {

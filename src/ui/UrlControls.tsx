@@ -1,6 +1,10 @@
 import { useRef, useState } from 'react'
-import { useStore } from '@tanstack/react-store'
-import { projectActions, projectStore } from '@/store/project-store'
+import { useSelector } from '@tanstack/react-store'
+import {
+  projectActions,
+  projectStore,
+  sanitizeProjectFileName,
+} from '@/store/project-store'
 import { fetchScad } from '@/server/fetch-scad'
 import {
   downloadStateFile,
@@ -13,7 +17,7 @@ const SAMPLE_NAME = 'multiboard-box.scad'
 const SAMPLE_ORIGIN = 'sample:/samples/multiboard-box.scad'
 
 export function UrlControls() {
-  const sourceState = useStore(projectStore, (s) => s.source)
+  const sourceState = useSelector(projectStore, (s) => s.source)
   const [url, setUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -66,10 +70,11 @@ export function UrlControls() {
       setError('Nothing to save — load a model first.')
       return
     }
-    const baseName = state.source.name.replace(/\.scad$/i, '') || 'state'
+    const baseName = sanitizeProjectFileName(state.projectName || 'state')
     const payload = serializeState({
       name: state.source.name,
       origin: state.source.origin,
+      projectName: state.projectName,
       source: state.source.text,
       overrides: state.overrides,
     })
@@ -101,6 +106,7 @@ export function UrlControls() {
         name: result.data.name,
         origin: result.data.origin,
         source: result.data.source,
+        projectName: result.data.projectName,
       })
       projectActions.setOverrides(result.data.overrides)
     } catch (err) {
@@ -119,13 +125,13 @@ export function UrlControls() {
           onKeyDown={(e) => {
             if (e.key === 'Enter') void handleLoad()
           }}
-          className="min-w-[260px] flex-1 rounded-full border border-[var(--line)] bg-[var(--chip-bg)] px-4 py-2 text-sm font-mono text-[var(--sea-ink)] placeholder:text-[var(--sea-ink-soft)]"
+          className="min-w-[260px] flex-1 rounded-full border border-(--line) bg-(--chip-bg) px-4 py-2 text-sm font-mono text-(--sea-ink) placeholder:text-(--sea-ink-soft)"
         />
         <button
           type="button"
           onClick={() => void handleLoad()}
           disabled={isLoading}
-          className="rounded-full border border-[rgba(50,143,151,0.3)] bg-[rgba(79,184,178,0.18)] px-4 py-2 text-sm font-semibold text-[var(--lagoon-deep)] transition disabled:opacity-50 hover:-translate-y-0.5"
+          className="rounded-full border border-[rgba(50,143,151,0.3)] bg-[rgba(79,184,178,0.18)] px-4 py-2 text-sm font-semibold text-(--lagoon-deep) transition disabled:opacity-50 hover:-translate-y-0.5"
         >
           {isLoading ? 'Loading…' : 'Load URL'}
         </button>
@@ -133,17 +139,17 @@ export function UrlControls() {
           type="button"
           onClick={() => void handleLoadSample()}
           disabled={isLoading}
-          className="rounded-full border border-[var(--line)] bg-[var(--chip-bg)] px-4 py-2 text-sm font-semibold text-[var(--sea-ink)] transition disabled:opacity-50"
+          className="rounded-full border border-(--line) bg-(--chip-bg) px-4 py-2 text-sm font-semibold text-(--sea-ink) transition disabled:opacity-50"
         >
           Load sample
         </button>
-        <span className="mx-1 hidden h-5 w-px bg-[var(--line)] sm:inline-block" />
+        <span className="mx-1 hidden h-5 w-px bg-(--line) sm:inline-block" />
         <button
           type="button"
           onClick={handleSaveState}
           disabled={!sourceState}
           title="Save the current source + parameter overrides to a JSON file"
-          className="rounded-full border border-[var(--line)] bg-[var(--chip-bg)] px-4 py-2 text-sm font-semibold text-[var(--sea-ink)] transition disabled:opacity-50"
+          className="rounded-full border border-(--line) bg-(--chip-bg) px-4 py-2 text-sm font-semibold text-(--sea-ink) transition disabled:opacity-50"
         >
           Save state
         </button>
@@ -151,7 +157,7 @@ export function UrlControls() {
           type="button"
           onClick={handlePickFile}
           title="Load a previously saved scad-webmcp state JSON file"
-          className="rounded-full border border-[var(--line)] bg-[var(--chip-bg)] px-4 py-2 text-sm font-semibold text-[var(--sea-ink)] transition"
+          className="rounded-full border border-(--line) bg-(--chip-bg) px-4 py-2 text-sm font-semibold text-(--sea-ink) transition"
         >
           Load state
         </button>

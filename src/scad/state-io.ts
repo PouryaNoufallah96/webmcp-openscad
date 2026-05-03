@@ -8,6 +8,8 @@ export type SavedState = {
   kind: typeof FILE_KIND
   name: string
   origin: string
+  /** Optional in v1: older state files predate the project-name field. */
+  projectName?: string
   source: string
   overrides: Record<string, ParameterValue>
   savedAt: string
@@ -16,6 +18,7 @@ export type SavedState = {
 export function serializeState(input: {
   name: string
   origin: string
+  projectName: string
   source: string
   overrides: Record<string, ParameterValue>
 }): SavedState {
@@ -24,6 +27,7 @@ export function serializeState(input: {
     kind: FILE_KIND,
     name: input.name,
     origin: input.origin,
+    projectName: input.projectName,
     source: input.source,
     overrides: input.overrides,
     savedAt: new Date().toISOString(),
@@ -70,6 +74,10 @@ export function parseState(text: string): {
   }
   const version = typeof obj.version === 'number' ? obj.version : 1
   const savedAt = typeof obj.savedAt === 'string' ? obj.savedAt : ''
+  const projectName =
+    typeof obj.projectName === 'string' && obj.projectName.trim() !== ''
+      ? obj.projectName.trim()
+      : undefined
   return {
     ok: true,
     data: {
@@ -77,6 +85,7 @@ export function parseState(text: string): {
       kind: FILE_KIND,
       name: obj.name,
       origin: obj.origin,
+      projectName,
       source: obj.source,
       overrides,
       savedAt,

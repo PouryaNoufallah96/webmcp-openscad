@@ -1,5 +1,25 @@
 /// <reference lib="webworker" />
 
+/**
+ * OpenSCAD WASM worker — runs the prebuilt `openscad.wasm` off the main
+ * thread, mounts BOSL2 into its virtual filesystem, and exposes a tiny
+ * request/response protocol (see `./protocol.ts`).
+ *
+ * Lifecycle:
+ *   1. First `render` request lazily boots the WASM (`createOpenSCAD`)
+ *      and mounts every BOSL2 file under `/libraries/BOSL2` and `/BOSL2`
+ *      so that `include <BOSL2/std.scad>` resolves either way.
+ *   2. The source is written to `/input.scad`, parameter overrides
+ *      become `-D Name=Value` flags, and `callMain` runs OpenSCAD CLI
+ *      with `-o /output.{stl|off|svg}`.
+ *   3. The output bytes are read back and `postMessage`d as a
+ *      transferable `Uint8Array` (zero-copy hand-off to the main thread).
+ *
+ * `callMain` is single-shot in this WASM build, so the main-thread
+ * client (`worker-client.ts`) terminates this worker after every render.
+ * That's why the boot promises are nulled out on rejection — a fresh
+ * worker should never inherit a poisoned cache.
+ */
 import { createOpenSCAD, type OpenSCADInstance } from 'openscad-wasm-prebuilt'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
@@ -105,6 +125,10 @@ function formatParamValue(value: unknown): string {
   return JSON.stringify(value)
 }
 
+/**
+ * Translate the override map into OpenSCAD CLI flags. The defaults stay
+ * baked into the source file; we only override values that diverge.
+ */
 function buildDFlags(params: Record<string, unknown>): string[] {
   const flags: string[] = []
   for (const [name, value] of Object.entries(params)) {

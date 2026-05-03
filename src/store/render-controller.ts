@@ -1,3 +1,20 @@
+/**
+ * Render controller — auto-renders the model whenever the source or any
+ * override actually changes.
+ *
+ * Design:
+ *   - Subscribe to the store and compute a stable signature
+ *     (`{ text, overrides }`). Skip work when the signature is identical
+ *     to the last one we acted on (every keystroke in the editor mutates
+ *     the store but only some of them change the rendered output).
+ *   - Debounce by 300ms so dragging a slider collapses to one render.
+ *   - Track a monotonic `requestId`; if a newer render starts before the
+ *     previous one resolves, the older result is recognised as stale and
+ *     dropped. The worker-client also issues a `cancel()` so the abandoned
+ *     worker is terminated outright (see worker-client.ts).
+ *   - `renderNow()` skips the debounce — used by the `render` MCP tool
+ *     and the manual "Render" button in the UI.
+ */
 import { projectActions, projectStore } from './project-store'
 import type { ProjectState } from './project-store'
 import { buildOverrideArgs } from '@/scad/source-mutations'

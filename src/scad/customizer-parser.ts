@@ -43,10 +43,15 @@ function stripBlockComments(source: string): string {
   return result
 }
 
-function parseLiteral(text: string): {
-  kind: 'number' | 'string' | 'boolean'
-  value: number | string | boolean
-} | null {
+// Discriminated union — letting `kind` narrow `value` is what allows the
+// downstream `if (literal.kind === 'number')` guards to type-check without
+// any casts.
+type Literal =
+  | { kind: 'number'; value: number }
+  | { kind: 'string'; value: string }
+  | { kind: 'boolean'; value: boolean }
+
+function parseLiteral(text: string): Literal | null {
   const t = text.trim()
   if (t === 'true') return { kind: 'boolean', value: true }
   if (t === 'false') return { kind: 'boolean', value: false }

@@ -1,13 +1,13 @@
 import Editor, { type OnMount } from '@monaco-editor/react'
-import { useStore } from '@tanstack/react-store'
+import { useSelector } from '@tanstack/react-store'
 import { useEffect, useRef, useState } from 'react'
 import { projectActions, projectStore } from '@/store/project-store'
 
 const COMMIT_DEBOUNCE_MS = 400
 
 export function SourceEditor({ className }: { className?: string }) {
-  const sourceText = useStore(projectStore, (s) => s.source?.text ?? '')
-  const sourceName = useStore(projectStore, (s) => s.source?.name ?? null)
+  const sourceText = useSelector(projectStore, (s) => s.source?.text ?? '')
+  const sourceName = useSelector(projectStore, (s) => s.source?.name ?? null)
   const [draft, setDraft] = useState<string>(sourceText)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastCommitted = useRef<string>(sourceText)
@@ -80,11 +80,11 @@ export function SourceEditor({ className }: { className?: string }) {
     <div className={className}>
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <p className="island-kicker">Source ({sourceName ?? 'no source'})</p>
-        <p className="m-0 text-[10px] font-mono text-[var(--sea-ink-soft)]">
+        <p className="m-0 text-[10px] font-mono text-(--sea-ink-soft)">
           {draft.length.toLocaleString()} chars · auto-commits 400ms after typing
         </p>
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--line)]">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-(--line)">
         <Editor
           height="100%"
           defaultLanguage="scad"

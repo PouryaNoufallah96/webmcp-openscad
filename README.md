@@ -26,9 +26,9 @@ End-to-end working at `http://localhost:3000`:
   up in the UI's render-details strip.
 - Activity panel shows a live, kind-tagged log of every action (`load`,
   `param`, `source`, `render`, `export`).
-- 14 WebMCP tools are registered on `navigator.modelContext` via
+- 16 WebMCP tools are registered on `navigator.modelContext` via
   `@mcp-b/global` and verified flowing through to the MCP-B browser
-  extension's proxy (`[MCP Proxy] Sending 14 tools with type: tools-updated`).
+  extension's proxy (`[MCP Proxy] Sending 16 tools with type: tools-updated`).
 - Monaco source editor with custom SCAD syntax highlighting, two-way bound
   to the store with a 400ms debounced commit + reparse.
 - Server-fn CORS proxy verified by loading `openscad/examples/Basics/CSG.scad`
@@ -78,20 +78,60 @@ or a direct `.scad` URL — and click **Load URL**.
 
 ## Connect Claude (or another MCP client)
 
-The browser registers tools on `navigator.modelContext`. Two paths to surface
-them in an MCP client:
+The browser registers 16 tools on `navigator.modelContext` (see
+`src/mcp/tools.ts`). Three different surfaces can pick them up; pick the
+one that matches your setup.
 
-### Path A: MCP-B browser extension (Chrome)
+### Path A — MCP-B Chrome extension (recommended for the demo)
 
-Install the MCP-B browser extension (Chrome Web Store). Open
-`http://localhost:3000`. The extension's content script picks up
-`navigator.modelContext` directly — no relay process required. You'll see
-`[MCP Proxy] Sending 14 tools with type: tools-updated` in the page console.
+The fastest path. The extension's content script reads
+`navigator.modelContext` directly — no relay process, no MCP config.
 
-### Path B: Local stdio relay (any MCP client)
+1. Install **MCP-B Extension** from the Chrome Web Store:
+   <https://chromewebstore.google.com/detail/mcp-b-extension/daohopfhkdelnpemnhlekblhnikhdhfa>
+2. Pin it to the toolbar so the side panel is one click away.
+3. Open `http://localhost:3000`. In the page DevTools console you should see:
 
-Add to your client's MCP config (Claude Desktop, Cursor, Windsurf, Claude
-Code, anything that speaks MCP):
+   ```
+   [mcp] registered 16 tools on navigator.modelContext
+   [MCP Proxy] Sending 16 tools with type: tools-updated
+   ```
+
+4. Click the MCP-B icon → **Tools** tab. You'll see all 16 tools from this
+   page (`load_from_url`, `list_parameters`, `set_parameters`, `render`,
+   `edit_source`, `export_stl`, `set_project_name`, …) plus whatever
+   extension built-ins you have enabled. The extension's chat sidebar can
+   now drive the page.
+
+To wire the extension up to **Claude Desktop / Cursor / Claude Code** as
+well (so an external client can call the page's tools), install the
+extension's native bridge:
+
+```bash
+npm install -g @mcp-b/native-server
+@mcp-b/native-server   # listens on http://127.0.0.1:12306/mcp
+```
+
+Then add to your MCP client config (e.g. `~/.config/claude/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "webmcp": {
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:12306/mcp"
+    }
+  }
+}
+```
+
+The native server proxies through the extension, so any tab that registers
+WebMCP tools becomes available to the desktop client.
+
+### Path B — Local stdio relay (extension-free)
+
+If you don't want to install the Chrome extension, use the standalone stdio
+relay. Add to your client's MCP config:
 
 ```json
 {
@@ -105,23 +145,24 @@ Code, anything that speaks MCP):
 ```
 
 Restart the client, open `http://localhost:3000`. The relay's embed script
-(loaded automatically by `__root.tsx`) opens a WebSocket back to the relay;
-the relay then surfaces every tool registered on `navigator.modelContext`
-over stdio MCP.
+(loaded automatically from `src/routes/__root.tsx`) opens a WebSocket back
+to the relay process; the relay then surfaces every tool registered on
+`navigator.modelContext` over stdio MCP.
 
 You should now see tools in your client:
 
 - `webmcp_list_sources`, `webmcp_list_tools`, `webmcp_call_tool` (relay
   management)
-- 14 dynamic tools from this page: `load_from_url`, `load_from_text`,
+- 16 dynamic tools from this page: `load_from_url`, `load_from_text`,
   `get_source`, `edit_source`, `revert_source`, `list_parameters`,
   `get_parameter`, `set_parameter`, `set_parameters`, `reset_parameters`,
-  `render`, `get_render_status`, `export_stl`, `get_history`
+  `render`, `get_render_status`, `export_stl`, `get_project_name`,
+  `set_project_name`, `get_history`
 
-### Native Chrome WebMCP (preview)
+### Path C — Native Chrome WebMCP (preview)
 
-If you want to drive `navigator.modelContext` directly from a Chromium build
-that ships native WebMCP (Canary 147+):
+To drive `navigator.modelContext` directly from a Chromium build that ships
+native WebMCP (Canary 147+):
 
 1. Visit `chrome://flags/#enable-webmcp-testing`
 2. Enable **WebMCP for testing**, restart the browser
@@ -168,7 +209,9 @@ the last successfully-rendered text.
 | `reset_parameters`  | Clear all overrides                                      |
 | `render`            | Force a render, return `{ ok, renderMs, byteLength }`    |
 | `get_render_status` | Snapshot of `idle/pending/success/error` plus stderr     |
-| `export_stl`        | Returns STL bytes as base64                              |
+| `export_stl`        | Returns STL bytes as base64 + the `.stl` filename        |
+| `get_project_name`  | Read the project name + the filename `export_stl` will use |
+| `set_project_name`  | Rename the project (sets the exported `.stl` filename)   |
 | `get_history`       | Recent action log so the agent can see its own footprints|
 
 ## Project layout

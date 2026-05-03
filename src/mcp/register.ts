@@ -1,3 +1,16 @@
+/**
+ * MCP registration — the one bridge between this app and the outside world.
+ *
+ * `initializeWebModelContext` (from `@mcp-b/global`) installs the full
+ * WebMCP runtime: it stamps `navigator.modelContext` on `window`, wires up
+ * the tab-server transport that the MCP-B browser extension talks to
+ * (`listTools` / `callTool`), and adds the iframe-child transport used by
+ * the local stdio relay's embed widget. After that, every entry in
+ * `tools` (see `./tools.ts`) is registered, in order.
+ *
+ * This module is idempotent — `useEffect` mounts may fire twice in dev,
+ * but only the first successful pass actually registers.
+ */
 import { initializeWebModelContext } from '@mcp-b/global'
 import { tools } from './tools'
 
